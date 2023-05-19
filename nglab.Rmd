@@ -1,0 +1,80 @@
+```{r}
+install.packages("tidyverse")
+library(tidyverse)
+```
+
+```{r}
+data <-read_csv(file = "sae3d.csv")
+```
+```{r}
+head(data)
+head(data, n = 10)
+head(data, 10)
+dim(data)
+length(data)
+str(data)
+```
+
+```{r}
+data2 <- data
+data2 <- data %>% janitor::clean_names()
+data2 <- data2 %>% rename(data_covid = covid, date_dose1 = dose1, date_dose2 = dose2, data_dose3 = dose3)
+allo
+```
+
+```{r}
+d_e2 <- data2 %>% filter(date_dose1 >= "2021-01-13")
+d_e2 <- d_e2 %>% filter(date_dose2 - date_dose1>45, !is.na(deces))
+```
+
+```{r}
+d <- d_e2 %>% mutate(new_var = ifelse(is.na(var), 0, 1)) %>% mutate(sequence = paste(type1, type2, type3, sep = "-"))%>% mutate( intervalle = date_dose2-date_dose1) %>% mutate(d, across(deces:detresse, ~ ifelse(. == "NON", 0, 1)))
+d <- d %>% rowwise() %>% mutate(new_var = ifelse(sum(across(deces:detresse)) >= 1, 1, 0))%>% ungroup()
+d %>% relocate(new_var, .before = deces)
+mutate(d,
+       age_plus_5 = age+5)
+```
+```{r}
+summary(d)
+d %>% summarise(moy_age = mean(age), 
+                median_x = median(intervalle, na.rm = T), 
+                iqr = quantile(intervalle, 0.75, na.rm = T)-quantile(intervalle, 0.25, na.rm = T))
+d %>% count(deces)
+d %>% group_by() %>% summarise(moy_age = mean(age), median_x = median(intervalle, na.rm = T))
+d %>% count(deces, detresse)
+
+d5<-summary(d)
+
+d %>% group_by() %>% mutate(moy_age = mean(age), median_x = median(intervalle, na.rm = T))
+
+quantile(d$intervalle, c(0.75, 0.25))
+d4 <- table(d$moy_age, d$median_x, d$iqr)
+
+```
+```{r}
+?gtsummary:tbl_summary()
+tbl1_seq <- tbl_summary(d %>% select(age, sexe, type1, type2, type3, sequence), by = sequence, missing = "no", statistic = list(age ~ "{mean} ({sd})"), digits = list(everything() ~ 0))
+write.csv(as_tibble(tbl1_seq), "Tbl1_seq.csv", row.names = F)
+```
+
+```{r}
+d %>% group_by(sexe) %>% summarise(across(deces:detresse, ~sum(.)/n()))
+#d %>% mutate(across(deg:deg, ~ round(. * 100), 1))
+
+d %>% count(sequence, sexe)
+d %>% group_by(sequence, sexe) %>% summarise(nombre = n())
+```
+
+```{r}
+fit <- glm(sae ~ age +sexe + forcats:: fct_relevel(sequence, "Moderna-Pfizer-Moderna-0"), family = binomial, d)
+summary(fit)
+str(fit)
+fit$coefficients
+exp(coef(fit))
+confint(fit) %>% exp()
+fit %>% gtsummary::tbl_regression(exponentiate = T)
+```
+```{r}
+d %>% mutate(new_var = fct_recode('MMP-' = "Moderna-Moderna-Pfizer-0", 'MPM-' = "Moderna-Pfizer-Moderna-0", 'MPM+' = "Moderna-Pfizer-Moderna-1", 'PPP-' = "Pfizer-Pfizer-Pfizer-0")) %>% ggplot(aes(x = new_var, y = sae))+geom_col()+labs(x = "Vaccine and COVID combination", y = "Systemic adverse events (%)")
+```
+
